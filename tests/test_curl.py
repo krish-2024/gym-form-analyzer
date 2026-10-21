@@ -39,7 +39,14 @@ def make_landmarks(
 
 
 def make_curl() -> Curl:
-    return Curl({**load_config()["curl"], "smoothing_window_size": 1})
+    config = load_config()
+    return Curl(
+        {
+            **config["curl"],
+            "smoothing_window_size": 1,
+            "scoring": config["scoring"],
+        }
+    )
 
 
 def test_counts_full_curl_and_feedback_detects_torso_swing() -> None:

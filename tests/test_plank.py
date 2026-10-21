@@ -26,7 +26,14 @@ def make_landmarks(
 
 
 def make_plank() -> Plank:
-    return Plank({**load_config()["plank"], "smoothing_window_size": 1})
+    config = load_config()
+    return Plank(
+        {
+            **config["plank"],
+            "smoothing_window_size": 1,
+            "scoring": config["scoring"],
+        }
+    )
 
 
 def test_aligned_plank_reports_hold_time_and_perfect_alignment() -> None:

@@ -133,7 +133,6 @@ class Squat(Exercise):
                 self._min_rep_knee_angle is None
                 or self._min_rep_knee_angle > self._depth_angle
             )
-            self._min_rep_knee_angle = None
 
         feedback = self._form_feedback(trunk_lean, heel_lift_ratio)
         if rep_was_shallow:
@@ -144,6 +143,7 @@ class Squat(Exercise):
         if transition.rep_completed:
             rep_score = self._score_completed_rep(timestamp, landmarks)
             self._score_tracker.add_rep(rep_score, self._rep_mistakes)
+            self._min_rep_knee_angle = None
             self._rep_started = None
             self._rep_mistakes.clear()
 

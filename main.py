@@ -118,6 +118,7 @@ def create_exercise(name: str, config: dict[str, object]) -> Exercise:
     exercise_config["smoothing_window_size"] = _get_section(
         config, "smoothing"
     )["window_size"]
+    exercise_config["scoring"] = _get_section(config, "scoring")
     return exercise_type(exercise_config)
 
 

@@ -31,7 +31,14 @@ def make_landmarks(
 
 
 def make_pushup() -> Pushup:
-    return Pushup({**load_config()["pushup"], "smoothing_window_size": 1})
+    config = load_config()
+    return Pushup(
+        {
+            **config["pushup"],
+            "smoothing_window_size": 1,
+            "scoring": config["scoring"],
+        }
+    )
 
 
 def test_counts_complete_pushup_and_reports_sagging_hips() -> None:

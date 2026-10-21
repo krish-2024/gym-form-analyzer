@@ -4,6 +4,7 @@ from types import SimpleNamespace
 
 import pytest
 
+from main import load_config
 from src.exercises.squat import LEFT, RIGHT, Squat
 
 BASE_CONFIG: dict[str, float | int] = {
@@ -58,7 +59,15 @@ def make_landmarks(
 
 
 def make_squat(**overrides: float | int) -> Squat:
-    return Squat({**BASE_CONFIG, **overrides})
+    config = load_config()
+    return Squat(
+        {
+            **config["squat"],
+            "smoothing_window_size": 1,
+            "scoring": config["scoring"],
+            **overrides,
+        }
+    )
 
 
 def test_counts_one_rep_only_after_full_down_up_cycle() -> None:
