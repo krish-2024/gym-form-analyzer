@@ -6,6 +6,8 @@ from abc import ABC, abstractmethod
 from dataclasses import dataclass, field
 from typing import Protocol, Sequence
 
+from src.scoring import ScoreSummary
+
 
 class LandmarkPoint(Protocol):
     """The MediaPipe landmark fields used by exercise analyzers."""
@@ -28,6 +30,7 @@ class FrameResult:
     rep_score: float | None = None
     hold_time: float | None = None
     alignment_score: float | None = None
+    set_score: float | None = None
 
 
 class Exercise(ABC):
@@ -38,3 +41,8 @@ class Exercise(ABC):
         self, landmarks: Sequence[LandmarkPoint] | None, timestamp: float
     ) -> FrameResult:
         """Consume one pose observation and return the updated exercise state."""
+
+    @property
+    @abstractmethod
+    def score_summary(self) -> ScoreSummary:
+        """Return score and common-mistake statistics for this set."""

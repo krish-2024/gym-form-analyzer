@@ -44,3 +44,25 @@ plank:
   alignment_tolerance_degrees: 15.0
   hip_offset_tolerance_ratio: 0.05
   head_droop_degrees: 20.0
+
+scoring:
+  weights:
+    range_of_motion: 30.0
+    posture_alignment: 40.0
+    tempo: 20.0
+    symmetry: 10.0
+  tempo:
+    ideal_rep_duration_seconds: 3.0
+    deviation_for_zero_score_seconds: 1.5
+  max_symmetry_difference_degrees: 30.0
+  range_failure_angles:
+    squat: 160.0
+    pushup: 150.0
+    curl: 110.0
+  posture_failure:
+    squat_trunk_lean_degrees: 70.0
+    squat_heel_lift_ratio: 0.2
+    pushup_alignment_deviation_degrees: 45.0
+    pushup_hip_offset_ratio: 0.25
+    curl_torso_swing_degrees: 30.0
+    curl_elbow_drift_ratio: 0.6
