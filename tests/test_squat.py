@@ -7,19 +7,6 @@ import pytest
 from main import load_config
 from src.exercises.squat import LEFT, RIGHT, Squat
 
-BASE_CONFIG: dict[str, float | int] = {
-    "landmark_visibility_threshold": 0.5,
-    "smoothing_window_size": 1,
-    "side_visibility_window": 3,
-    "knee_down_angle": 100.0,
-    "knee_up_angle": 160.0,
-    "min_transition_seconds": 0.3,
-    "depth_knee_angle": 100.0,
-    "max_trunk_lean_degrees": 45.0,
-    "max_heel_lift_ratio": 0.04,
-}
-
-
 def make_landmarks(
     knee_angle: float = 180.0,
     *,
