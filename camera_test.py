@@ -5,7 +5,8 @@ import cv2
 LOGGER = logging.getLogger(__name__)
 
 
-def main():
+def main() -> None:
+    """Probe the first three camera indices with common Windows backends."""
     logging.basicConfig(level=logging.INFO, format="%(levelname)s: %(message)s")
     backends = (
         ("DirectShow", cv2.CAP_DSHOW),

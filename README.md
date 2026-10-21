@@ -1,12 +1,13 @@
 # Intelligent Gym Exercise & Form Analysis System
 
-Phase 1 provides camera-independent angle and squat logic plus a webcam/video
-preview using classic MediaPipe Pose. It detects squat phases and repetitions,
-shows knee angle and simple side-view coaching cues, and asks the user to move
-into frame when required landmarks are unavailable. It is a coaching aid, not
-a replacement for a qualified trainer. Landmark x/y values are converted to
-image coordinates before angle and ratio calculations to account for the
-camera frame's aspect ratio.
+The application uses classic MediaPipe Pose to analyze webcam or video input.
+Phases 1 and 2 provide camera-independent angle, squat, push-up, curl, and
+plank logic. The live view shows movement phase, repetitions or plank hold
+time, alignment when available, and side-view coaching cues. It asks the user
+to move into frame when required landmarks are unavailable. It is a coaching
+aid, not a replacement for a qualified trainer. Landmark x/y values are
+converted to image coordinates before angle and ratio calculations to account
+for the camera frame's aspect ratio.
 
 ## Setup
 
@@ -34,3 +35,7 @@ For a video file, pass its path instead of camera index `0`:
 
 Allow camera access if prompted. Press **Q** in the preview to quit. Camera
 access and real-time performance have not been verified in this environment.
+
+Select the supported Phase 2 analyzer by replacing `squat` with `pushup`,
+`curl`, or `plank`.
+# gym-form-analyzer

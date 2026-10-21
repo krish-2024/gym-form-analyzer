@@ -3,9 +3,11 @@ pose:
   min_detection_confidence: 0.6
   min_tracking_confidence: 0.6
 
+smoothing:
+  window_size: 5
+
 squat:
   landmark_visibility_threshold: 0.5
-  smoothing_window_size: 5
   side_visibility_window: 15
   knee_down_angle: 100.0
   knee_up_angle: 160.0
@@ -13,3 +15,32 @@ squat:
   depth_knee_angle: 100.0
   max_trunk_lean_degrees: 45.0
   max_heel_lift_ratio: 0.04
+
+pushup:
+  landmark_visibility_threshold: 0.5
+  side_visibility_window: 15
+  elbow_down_angle: 90.0
+  elbow_up_angle: 160.0
+  min_transition_seconds: 0.3
+  ideal_body_alignment_degrees: 180.0
+  posture_tolerance_degrees: 15.0
+  incomplete_bend_angle: 90.0
+
+curl:
+  landmark_visibility_threshold: 0.5
+  side_visibility_window: 15
+  elbow_curled_angle: 50.0
+  elbow_extended_angle: 150.0
+  min_transition_seconds: 0.3
+  max_torso_swing_degrees: 10.0
+  max_elbow_drift_ratio: 0.2
+  partial_range_angle: 50.0
+
+plank:
+  landmark_visibility_threshold: 0.5
+  side_visibility_window: 15
+  ideal_body_alignment_degrees: 180.0
+  ideal_head_alignment_degrees: 180.0
+  alignment_tolerance_degrees: 15.0
+  hip_offset_tolerance_ratio: 0.05
+  head_droop_degrees: 20.0

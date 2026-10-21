@@ -26,6 +26,8 @@ class FrameResult:
     feedback: list[str] = field(default_factory=list)
     rep_completed: bool = False
     rep_score: float | None = None
+    hold_time: float | None = None
+    alignment_score: float | None = None
 
 
 class Exercise(ABC):

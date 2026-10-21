@@ -1,4 +1,4 @@
-"""Command-line entry point for real-time squat form analysis."""
+"""Command-line entry point for real-time exercise form analysis."""
 
 from __future__ import annotations
 
@@ -6,14 +6,17 @@ import argparse
 import logging
 import time
 from pathlib import Path
-from typing import Sequence
+from typing import Callable, Sequence
 
 import cv2
 import numpy as np
 import yaml
 from yaml import YAMLError
 
-from src.exercises.base import FrameResult
+from src.exercises.base import Exercise, FrameResult
+from src.exercises.curl import Curl
+from src.exercises.plank import Plank
+from src.exercises.pushup import Pushup
 from src.exercises.squat import Squat
 from src.pose import PoseDetector
 
@@ -51,9 +54,9 @@ def parse_args(arguments: Sequence[str] | None = None) -> argparse.Namespace:
     )
     parser.add_argument(
         "--exercise",
-        choices=("squat",),
+        choices=("squat", "pushup", "curl", "plank"),
         default="squat",
-        help="Exercise to analyze (Phase 1 supports squat).",
+        help="Exercise to analyze.",
     )
     return parser.parse_args(arguments)
 
@@ -73,10 +76,19 @@ def open_capture(source: str) -> cv2.VideoCapture:
 
 def draw_result(frame: np.ndarray, result: FrameResult) -> None:
     """Draw the current exercise state and feedback on a video frame."""
-    phase = result.phase
-    knee_angle = result.angles.get("knee")
-    knee_text = f"Knee: {knee_angle:.0f} deg" if knee_angle is not None else "Knee: --"
-    lines = [knee_text, f"Phase: {phase}  Reps: {result.rep_count}"]
+    primary_angle = result.angles.get("knee", result.angles.get("elbow"))
+    angle_text = (
+        f"Joint angle: {primary_angle:.0f} deg"
+        if primary_angle is not None
+        else "Joint angle: --"
+    )
+    lines = [angle_text]
+    if result.hold_time is None:
+        lines.append(f"Phase: {result.phase}  Reps: {result.rep_count}")
+    else:
+        lines.append(f"Phase: {result.phase}  Hold: {result.hold_time:.1f}s")
+    if result.alignment_score is not None:
+        lines.append(f"Alignment: {result.alignment_score:.0f}/100")
     lines.extend(result.feedback)
     for index, line in enumerate(lines):
         cv2.putText(
@@ -90,14 +102,33 @@ def draw_result(frame: np.ndarray, result: FrameResult) -> None:
         )
 
 
-def run(source: str, config: dict[str, object]) -> int:
+def create_exercise(name: str, config: dict[str, object]) -> Exercise:
+    """Create an exercise analyzer from its named YAML configuration section."""
+    exercise_types: dict[str, Callable[[dict[str, object]], Exercise]] = {
+        "squat": Squat,
+        "pushup": Pushup,
+        "curl": Curl,
+        "plank": Plank,
+    }
+    try:
+        exercise_type = exercise_types[name]
+    except KeyError as error:
+        raise ValueError(f"Unsupported exercise: {name}") from error
+    exercise_config = _get_section(config, name).copy()
+    exercise_config["smoothing_window_size"] = _get_section(
+        config, "smoothing"
+    )["window_size"]
+    return exercise_type(exercise_config)
+
+
+def run(source: str, config: dict[str, object], exercise_name: str = "squat") -> int:
     """Run the video analysis loop and release resources on every exit path."""
     capture: cv2.VideoCapture | None = None
     detector: PoseDetector | None = None
     try:
         capture = open_capture(source)
         detector = PoseDetector(_get_section(config, "pose"))
-        exercise = Squat(_get_section(config, "squat"))
+        exercise = create_exercise(exercise_name, config)
         while True:
             success, frame = capture.read()
             if not success:
@@ -108,10 +139,17 @@ def run(source: str, config: dict[str, object]) -> int:
             result = exercise.update(landmarks, time.monotonic())
             detector.draw(frame)
             draw_result(frame, result)
-            cv2.imshow("Gym Form Analyzer - Squat", frame)
+            cv2.imshow(f"Gym Form Analyzer - {exercise_name.title()}", frame)
             if cv2.waitKey(1) & 0xFF == ord("q"):
                 return 0
-    except (cv2.error, FileNotFoundError, OSError, ValueError, RuntimeError) as error:
+    except (
+        cv2.error,
+        FileNotFoundError,
+        KeyError,
+        OSError,
+        ValueError,
+        RuntimeError,
+    ) as error:
         LOGGER.error("%s", error)
         return 1
     finally:
@@ -136,7 +174,7 @@ def main(arguments: Sequence[str] | None = None) -> int:
         LOGGER.error("%s", error)
         return 1
     try:
-        return run(args.source, config)
+        return run(args.source, config, args.exercise)
     except ValueError as error:
         LOGGER.error("%s", error)
         return 1
