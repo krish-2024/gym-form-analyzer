@@ -34,6 +34,7 @@ class Pushup(Exercise):
         self._visibility_threshold = float(config["landmark_visibility_threshold"])
         self._ideal_alignment = float(config["ideal_body_alignment_degrees"])
         self._posture_tolerance = float(config["posture_tolerance_degrees"])
+        self._hip_offset_tolerance = float(config["hip_offset_tolerance_ratio"])
         self._depth_angle = float(config["incomplete_bend_angle"])
         self._elbow_smoother = MovingAverage(int(config["smoothing_window_size"]))
         side_visibility = {
@@ -184,7 +185,7 @@ class Pushup(Exercise):
         )
         hip_score = threshold_score(
             self._max_hip_offset,
-            float(config_section(self._config, "unused")["unused"]),
+            self._hip_offset_tolerance,
             self._poor_hip_offset,
         )
         duration = (

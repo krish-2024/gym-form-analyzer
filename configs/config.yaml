@@ -24,6 +24,7 @@ pushup:
   min_transition_seconds: 0.3
   ideal_body_alignment_degrees: 180.0
   posture_tolerance_degrees: 15.0
+  hip_offset_tolerance_ratio: 0.05
   incomplete_bend_angle: 90.0
 
 curl:
