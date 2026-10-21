@@ -7,6 +7,7 @@ from typing import Sequence
 from src.angles import angle_between
 from src.exercises.base import Exercise, FrameResult, LandmarkPoint
 from src.exercises.common import SideSelector, body_line_metrics
+from src.scoring import ScoreSummary, SetScoreTracker
 from src.smoothing import MovingAverage
 
 LEFT = {"ear": 7, "shoulder": 11, "hip": 23, "ankle": 27}
@@ -36,6 +37,13 @@ class Plank(Exercise):
         self._head_smoother = MovingAverage(smoothing_window)
         self._hold_started: float | None = None
         self._accumulated_hold = 0.0
+        self._score_tracker = SetScoreTracker()
+        self._active_mistakes: set[str] = set()
+
+    @property
+    def score_summary(self) -> ScoreSummary:
+        """Return mean alignment and common cue statistics for the hold session."""
+        return self._score_tracker.summary
 
     def update(
         self, landmarks: Sequence[LandmarkPoint] | None, timestamp: float
@@ -100,6 +108,10 @@ class Plank(Exercise):
         else:
             self._end_hold(timestamp)
             phase = "correcting"
+        self._score_tracker.add_hold_score(alignment_score)
+        current_mistakes = set(feedback)
+        self._score_tracker.add_mistakes(current_mistakes - self._active_mistakes)
+        self._active_mistakes = current_mistakes
         hold_time = self._current_hold_time(timestamp)
         return FrameResult(
             phase=phase,
@@ -112,6 +124,7 @@ class Plank(Exercise):
             feedback=feedback,
             hold_time=hold_time,
             alignment_score=alignment_score,
+            set_score=self.score_summary.average_score,
         )
 
     def _has_required_landmarks(
@@ -136,9 +149,11 @@ class Plank(Exercise):
     def _missing_result(self) -> FrameResult:
         self._alignment_smoother.reset()
         self._head_smoother.reset()
+        self._active_mistakes.clear()
         return FrameResult(
             phase="correcting",
             rep_count=0,
             feedback=["Move into frame"],
             hold_time=self._accumulated_hold,
+            set_score=self.score_summary.average_score,
         )

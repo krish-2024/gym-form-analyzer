@@ -89,6 +89,10 @@ def draw_result(frame: np.ndarray, result: FrameResult) -> None:
         lines.append(f"Phase: {result.phase}  Hold: {result.hold_time:.1f}s")
     if result.alignment_score is not None:
         lines.append(f"Alignment: {result.alignment_score:.0f}/100")
+    if result.rep_score is not None:
+        lines.append(f"Rep score: {result.rep_score:.0f}/100")
+    if result.set_score is not None:
+        lines.append(f"Set average: {result.set_score:.0f}/100")
     lines.extend(result.feedback)
     for index, line in enumerate(lines):
         cv2.putText(
@@ -126,6 +130,7 @@ def run(source: str, config: dict[str, object], exercise_name: str = "squat") ->
     """Run the video analysis loop and release resources on every exit path."""
     capture: cv2.VideoCapture | None = None
     detector: PoseDetector | None = None
+    exercise: Exercise | None = None
     try:
         capture = open_capture(source)
         detector = PoseDetector(_get_section(config, "pose"))
@@ -163,10 +168,24 @@ def run(source: str, config: dict[str, object], exercise_name: str = "squat") ->
                     capture.release()
             finally:
                 cv2.destroyAllWindows()
+        if exercise is not None:
+            summary = exercise.score_summary
+            average = (
+                f"{summary.average_score:.1f}/100"
+                if summary.average_score is not None
+                else "not available"
+            )
+            LOGGER.info(
+                "Set summary: %s reps, average score %s",
+                summary.repetitions,
+                average,
+            )
+            for mistake, count in summary.common_mistakes:
+                LOGGER.info("Common mistake: %s (%s reps/occurrences)", mistake, count)
 
 
 def main(arguments: Sequence[str] | None = None) -> int:
-    """Run the configured squat analyzer."""
+    """Run the configured exercise analyzer."""
     logging.basicConfig(level=logging.INFO, format="%(levelname)s: %(message)s")
     args = parse_args(arguments)
     try:
