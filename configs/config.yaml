@@ -1,0 +1,15 @@
+pose:
+  model_complexity: 1
+  min_detection_confidence: 0.6
+  min_tracking_confidence: 0.6
+
+squat:
+  landmark_visibility_threshold: 0.5
+  smoothing_window_size: 5
+  side_visibility_window: 15
+  knee_down_angle: 100.0
+  knee_up_angle: 160.0
+  min_transition_seconds: 0.3
+  depth_knee_angle: 100.0
+  max_trunk_lean_degrees: 45.0
+  max_heel_lift_ratio: 0.04
