@@ -11,6 +11,15 @@ from src.exercises.common import (
     RepetitionStateMachine,
     SideSelector,
 )
+from src.scoring import (
+    RepScorer,
+    ScoreSummary,
+    SetScoreTracker,
+    config_section,
+    symmetry_score,
+    tempo_score,
+    threshold_score,
+)
 from src.smoothing import MovingAverage
 
 LEFT = {"shoulder": 11, "elbow": 13, "wrist": 15, "hip": 23}
@@ -49,6 +58,28 @@ class Curl(Exercise):
         self._partial_range = PartialRangeTracker(
             "extended", float(config["elbow_curled_angle"])
         )
+        scoring_config = config_section(config, "scoring")
+        self._scorer = RepScorer(scoring_config)
+        self._score_tracker = SetScoreTracker()
+        tempo_config = config_section(scoring_config, "tempo")
+        range_failures = config_section(scoring_config, "range_failure_angles")
+        posture_failures = config_section(scoring_config, "posture_failure")
+        self._ideal_rep_duration = float(tempo_config["ideal_rep_duration_seconds"])
+        self._tempo_tolerance = float(tempo_config["deviation_for_zero_score_seconds"])
+        self._range_failure_angle = float(range_failures["curl"])
+        self._poor_torso_swing = float(posture_failures["curl_torso_swing_degrees"])
+        self._poor_elbow_drift = float(posture_failures["curl_elbow_drift_ratio"])
+        self._max_symmetry_difference = float(
+            scoring_config["max_symmetry_difference_degrees"]
+        )
+        self._rep_started: float | None = None
+        self._max_rep_elbow_drift = 0.0
+        self._rep_mistakes: set[str] = set()
+
+    @property
+    def score_summary(self) -> ScoreSummary:
+        """Return the scores and mistake counts accumulated for this set."""
+        return self._score_tracker.summary
 
     def update(
         self, landmarks: Sequence[LandmarkPoint] | None, timestamp: float
@@ -89,11 +120,17 @@ class Curl(Exercise):
             self._minimum_elbow_angle = self._minimum(
                 self._minimum_elbow_angle, elbow_angle
             )
+            self._max_rep_elbow_drift = max(
+                self._max_rep_elbow_drift, elbow_drift_ratio
+            )
         transition = self._repetitions.update(elbow_angle, timestamp)
         if transition.phase == "curled" and not was_curled:
             self._rep_min_torso = torso_angle
             self._rep_max_torso = torso_angle
             self._minimum_elbow_angle = elbow_angle
+            self._rep_started = timestamp
+            self._max_rep_elbow_drift = elbow_drift_ratio
+            self._rep_mistakes.clear()
 
         torso_range = 0.0
         if self._rep_min_torso is not None and self._rep_max_torso is not None:
@@ -111,21 +148,91 @@ class Curl(Exercise):
                 or self._minimum_elbow_angle > self._partial_angle
             ):
                 feedback.append("Curl through the full range")
+        rep_torso_range = torso_range
+        rep_score: float | None = None
+        if transition.phase == "curled" or transition.rep_completed:
+            self._rep_mistakes.update(feedback)
+        if transition.rep_completed:
+            rep_score = self._score_completed_rep(timestamp, landmarks, rep_torso_range)
+            self._score_tracker.add_rep(rep_score, self._rep_mistakes)
             self._rep_min_torso = None
             self._rep_max_torso = None
             self._minimum_elbow_angle = None
+            self._rep_started = None
+            self._rep_mistakes.clear()
 
         return FrameResult(
             phase=transition.phase,
             rep_count=self._repetitions.rep_count,
             angles={
                 "elbow": elbow_angle,
-                "torso_swing": torso_range,
+                "torso_swing": rep_torso_range,
                 "elbow_drift_ratio": elbow_drift_ratio,
                 "torso_lean": torso_angle,
             },
             feedback=feedback,
             rep_completed=transition.rep_completed,
+            rep_score=rep_score,
+            set_score=self.score_summary.average_score,
+        )
+
+    def _score_completed_rep(
+        self,
+        timestamp: float,
+        landmarks: Sequence[LandmarkPoint],
+        torso_range: float,
+    ) -> float:
+        minimum_angle = (
+            self._minimum_elbow_angle
+            if self._minimum_elbow_angle is not None
+            else self._range_failure_angle
+        )
+        range_score = threshold_score(
+            minimum_angle,
+            float(self._partial_angle),
+            self._range_failure_angle,
+        )
+        torso_score = threshold_score(
+            torso_range, self._max_torso_swing, self._poor_torso_swing
+        )
+        elbow_score = threshold_score(
+            self._max_rep_elbow_drift,
+            self._max_elbow_drift_ratio,
+            self._poor_elbow_drift,
+        )
+        duration = (
+            max(0.0, timestamp - self._rep_started)
+            if self._rep_started is not None
+            else 0.0
+        )
+        tempo = tempo_score(duration, self._ideal_rep_duration, self._tempo_tolerance)
+        return self._scorer.score(
+            range_score,
+            (torso_score + elbow_score) / 2,
+            tempo,
+            self._bilateral_score(landmarks),
+        )
+
+    def _bilateral_score(
+        self, landmarks: Sequence[LandmarkPoint]
+    ) -> float | None:
+        angles: list[float] = []
+        for joints in (LEFT, RIGHT):
+            indices = (joints["shoulder"], joints["elbow"], joints["wrist"])
+            if any(
+                index >= len(landmarks)
+                or landmarks[index].visibility < self._visibility_threshold
+                for index in indices
+            ):
+                return None
+            try:
+                angles.append(
+                    angle_between(*(landmarks[index] for index in indices))
+                )
+            except ValueError:
+                return None
+        return symmetry_score(
+            angles[0], angles[1], self._max_symmetry_difference
         )
 
     def _has_required_landmarks(
@@ -154,6 +261,12 @@ class Curl(Exercise):
         self._elbow_smoother.reset()
         self._torso_smoother.reset()
         self._partial_range.reset()
+        self._rep_min_torso = None
+        self._rep_max_torso = None
+        self._minimum_elbow_angle = None
+        self._max_rep_elbow_drift = 0.0
+        self._rep_started = None
+        self._rep_mistakes.clear()
         return FrameResult(
             phase=self._repetitions.phase,
             rep_count=self._repetitions.rep_count,
